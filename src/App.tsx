@@ -44,6 +44,37 @@ export const App: React.FC = () => {
     }
   }, [tg.isTelegram, tg.colorScheme]);
 
+  // Handle cross-browser handoff parameters (when coming from Telegram to external Chrome/Safari)
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('tab') === 'results') {
+        setActiveTab('results');
+      }
+      const hash = window.location.hash;
+      if (hash.includes('data=')) {
+        const rawPart = hash.substring(hash.indexOf('data=') + 5);
+        const cleanPart = rawPart.split('&')[0];
+        const dataStr = decodeURIComponent(cleanPart);
+        const importedGrades = JSON.parse(dataStr);
+        if (importedGrades && typeof importedGrades === 'object') {
+          setGrades(importedGrades);
+        }
+      }
+      if (params.get('print') === '1') {
+        setTimeout(() => {
+          try {
+            window.print();
+          } catch {
+            // fallback handled in UI
+          }
+        }, 700);
+      }
+    } catch (err) {
+      console.warn('Error reading url params:', err);
+    }
+  }, [setGrades]);
+
   const semesterResult = calculateSemester(grades);
 
   const handleGradeChange = (
@@ -108,22 +139,16 @@ export const App: React.FC = () => {
     if (!tg.isTelegram) return;
 
     if (activeTab === 'results') {
-      // On Results tab: offer direct PDF / print trigger
+      // In Telegram: offer native Telegram share sheet to Saved Messages
       tg.configureMainButton({
-        text: `🖨️ ${t.labels.print}`,
+        text: `📤 ${t.labels.shareTelegram}`,
         isVisible: true,
-        color: '#0ea5e9',
+        color: '#0284c7',
         textColor: '#ffffff',
         onClick: () => {
-          tg.haptic('light');
+          tg.haptic('success');
           if (exportResultsFnRef.current) {
             exportResultsFnRef.current();
-          } else {
-            try {
-              window.print();
-            } catch {
-              // fallback
-            }
           }
         },
       });
@@ -235,6 +260,15 @@ export const App: React.FC = () => {
             result={semesterResult}
             language={language}
             defaultStudentName={telegramStudentName}
+            isTelegram={tg.isTelegram}
+            grades={grades}
+            onOpenExternalPrint={(url) => tg.openLink(url)}
+            onShareTelegram={(text) => {
+              tg.haptic('success');
+              tg.openTelegramLink(
+                `https://t.me/share/url?url=&text=${encodeURIComponent(text)}`
+              );
+            }}
             onExportReady={(fn) => {
               exportResultsFnRef.current = fn;
             }}

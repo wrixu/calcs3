@@ -56,6 +56,8 @@ export interface TranslationSchema {
     downloadHtml: string;
     copySummary: string;
     copied: string;
+    shareTelegram: string;
+    openInBrowser: string;
   };
   targetCalc: {
     title: string;
@@ -91,6 +93,13 @@ export interface TranslationSchema {
     mention: string;
     ueDetails: string;
     printInstruction: string;
+    telegramNoticeTitle: string;
+    telegramNoticeDesc: string;
+    rawTextSection: string;
+    copyAllText: string;
+    exportSectionTitle: string;
+    exportSectionDesc: string;
+    exportSectionDescTelegram: string;
   };
   modal: {
     resetTitle: string;
@@ -162,6 +171,8 @@ export const translations: Record<Language, TranslationSchema> = {
       downloadHtml: 'Télécharger le Relevé (HTML / PDF)',
       copySummary: 'Copier le Résumé',
       copied: 'Copié !',
+      shareTelegram: 'Envoyer sur Telegram (Saved Messages)',
+      openInBrowser: 'Ouvrir dans Chrome / Safari (Imprimer / PDF)',
     },
     targetCalc: {
       title: 'Calculateur d’Objectif de Moyenne',
@@ -202,6 +213,15 @@ export const translations: Record<Language, TranslationSchema> = {
       ueDetails: 'Détail par Unité d’Enseignement (UE)',
       printInstruction:
         'Cliquez sur "Imprimer / PDF" pour générer une version papier ou sauvegarder en PDF.',
+      telegramNoticeTitle: 'Export Telegram Mini App Optimisé',
+      telegramNoticeDesc:
+        'Telegram restreint l’impression directe dans sa fenêtre. Utilisez « Envoyer sur Telegram » pour recevoir votre relevé dans vos Messages Enregistrés, ou « Ouvrir dans Chrome / Safari » pour l’imprimer en PDF.',
+      rawTextSection: 'Texte brut du relevé (pour copie manuelle)',
+      copyAllText: 'Copier tout le texte',
+      exportSectionTitle: 'Exportation & Partage du Relevé',
+      exportSectionDesc: 'Imprimez, sauvegardez en PDF ou partagez en un clic.',
+      exportSectionDescTelegram:
+        'Envoyez sur Telegram ou ouvrez dans Chrome/Safari pour sauvegarder en PDF.',
     },
     modal: {
       resetTitle: 'Confirmer la réinitialisation',
@@ -272,6 +292,8 @@ export const translations: Record<Language, TranslationSchema> = {
       downloadHtml: 'تحميل كشف النقاط (HTML / PDF)',
       copySummary: 'نسخ الملخص',
       copied: 'تم النسخ بنجاح !',
+      shareTelegram: 'إرسال عبر تيليجرام (الرسائل المحفوظة)',
+      openInBrowser: 'فتح في المتصفح الخارجي للطباعة',
     },
     targetCalc: {
       title: 'حاسبة المعدل المستهدف',
@@ -312,6 +334,15 @@ export const translations: Record<Language, TranslationSchema> = {
       ueDetails: 'التفاصيل حسب الوحدات التعليمية (UE)',
       printInstruction:
         'اضغط على "طباعة / تصدير PDF" لطباعة كشف النقاط بتنسيق ورقي احترافي.',
+      telegramNoticeTitle: 'تصدير محسّن لتطبيق تيليجرام المصغر',
+      telegramNoticeDesc:
+        'يقيد تيليجرام الطباعة المباشرة داخل المتصفح المدمج. استخدم « إرسال عبر تيليجرام » لحفظ كشف النقاط في الرسائل المحفوظة، أو « فتح في المتصفح الخارجي » لحفظه بصيغة PDF.',
+      rawTextSection: 'النص الخام لكشف النقاط (للنسخ اليدوي)',
+      copyAllText: 'نسخ كامل النص',
+      exportSectionTitle: 'تصدير ومشاركة كشف النقاط',
+      exportSectionDesc: 'اطبع، احفظ بصيغة PDF أو شارك بنقرة واحدة.',
+      exportSectionDescTelegram:
+        'أرسل عبر تيليجرام أو افتح في Chrome/Safari للحفظ بصيغة PDF.',
     },
     modal: {
       resetTitle: 'تأكيد إعادة الضبط',
@@ -382,6 +413,8 @@ export const translations: Record<Language, TranslationSchema> = {
       downloadHtml: 'Download Report (HTML / PDF)',
       copySummary: 'Copy Summary',
       copied: 'Copied!',
+      shareTelegram: 'Share on Telegram (Saved Messages)',
+      openInBrowser: 'Open in Chrome / Safari (Print / PDF)',
     },
     targetCalc: {
       title: 'Target Grade Calculator',
@@ -422,6 +455,15 @@ export const translations: Record<Language, TranslationSchema> = {
       ueDetails: 'Details by Teaching Unit (UE)',
       printInstruction:
         'Click "Print / Export PDF" to generate a clean, printable transcript or save as PDF.',
+      telegramNoticeTitle: 'Optimized for Telegram Mini App',
+      telegramNoticeDesc:
+        'Telegram restricts direct printing inside its in-app webview. Use "Share on Telegram" to save your transcript in Saved Messages, or "Open in Chrome / Safari" to print or save as PDF.',
+      rawTextSection: 'Raw transcript text (for manual copy)',
+      copyAllText: 'Copy all text',
+      exportSectionTitle: 'Export & Share Transcript',
+      exportSectionDesc: 'Print, save as PDF, or share in one click.',
+      exportSectionDescTelegram:
+        'Send via Telegram or open in Chrome/Safari to save as PDF.',
     },
     modal: {
       resetTitle: 'Confirm Reset',

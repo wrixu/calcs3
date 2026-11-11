@@ -11,12 +11,14 @@ export interface TelegramState {
 export function useTelegramWebApp() {
   const [tgState, setTgState] = useState<TelegramState>(() => {
     const tg = typeof window !== 'undefined' ? window.Telegram?.WebApp : undefined;
+    const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
     const isTg = Boolean(
-      tg &&
+      (tg &&
         (Boolean(tg.initData) ||
           Boolean(tg.initDataUnsafe?.user) ||
           (Boolean(tg.platform) && tg.platform !== 'unknown') ||
-          window.location.hash.includes('tgWebAppData'))
+          window.location.hash.includes('tgWebAppData'))) ||
+        /Telegram/i.test(userAgent)
     );
 
     return {
@@ -162,10 +164,32 @@ export function useTelegramWebApp() {
     []
   );
 
+  // Open link in external system browser (Chrome/Safari)
+  const openLink = useCallback((url: string) => {
+    const tg = window.Telegram?.WebApp;
+    if (tg?.openLink) {
+      tg.openLink(url);
+    } else {
+      window.open(url, '_blank');
+    }
+  }, []);
+
+  // Open Telegram native link (e.g., share dialog)
+  const openTelegramLink = useCallback((url: string) => {
+    const tg = window.Telegram?.WebApp;
+    if (tg?.openTelegramLink) {
+      tg.openTelegramLink(url);
+    } else {
+      window.open(url, '_blank');
+    }
+  }, []);
+
   return {
     ...tgState,
     haptic,
     configureMainButton,
     configureBackButton,
+    openLink,
+    openTelegramLink,
   };
 }

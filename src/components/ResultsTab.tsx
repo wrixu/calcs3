@@ -1,6 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Printer, Download, Copy, Check, ExternalLink } from 'lucide-react';
-import type { SemesterResult, Language } from '../types';
+import {
+  Printer,
+  Download,
+  Copy,
+  Check,
+  Send,
+  ExternalLink,
+  Share2,
+  FileText,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react';
+import type { SemesterResult, Language, GradeState } from '../types';
 import { UES } from '../data/curriculum';
 import { translations } from '../data/translations';
 
@@ -8,6 +19,10 @@ interface ResultsTabProps {
   result: SemesterResult;
   language: Language;
   defaultStudentName?: string;
+  isTelegram?: boolean;
+  grades?: GradeState;
+  onOpenExternalPrint?: (url: string) => void;
+  onShareTelegram?: (text: string) => void;
   onExportReady?: (exportFn: () => void) => void;
 }
 
@@ -15,12 +30,17 @@ export const ResultsTab: React.FC<ResultsTabProps> = ({
   result,
   language,
   defaultStudentName = '',
+  isTelegram = false,
+  grades = {},
+  onOpenExternalPrint,
+  onShareTelegram,
   onExportReady,
 }) => {
   const t = translations[language];
   const [studentName, setStudentName] = useState<string>(defaultStudentName);
   const [matricule, setMatricule] = useState<string>('');
   const [copied, setCopied] = useState<boolean>(false);
+  const [showFullText, setShowFullText] = useState<boolean>(false);
 
   useEffect(() => {
     if (defaultStudentName && !studentName) {
@@ -28,13 +48,46 @@ export const ResultsTab: React.FC<ResultsTabProps> = ({
     }
   }, [defaultStudentName, studentName]);
 
-  useEffect(() => {
-    onExportReady?.(handlePrint);
-  }, [onExportReady]);
-
   const displayAverage = result.isFullyCompleted
     ? result.semesterAverage
     : result.partialAverage;
+
+  // Build clean text summary for Telegram sharing or clipboard
+  const buildSummaryText = (): string => {
+    const avgStr = displayAverage !== null ? displayAverage.toFixed(2) : '--';
+    const statusText = result.isFullyCompleted
+      ? result.isPassing
+        ? '✅ ADMIS(E) (Par compensation)'
+        : '⚠️ AJOURNÉ(E) (Rattrapage)'
+      : '⏳ Saisie en cours';
+
+    let modulesList = '';
+    for (const ue of UES) {
+      const ueRes = result.ues[ue.id];
+      const ueAvgStr = ueRes.ueAverage !== null ? ueRes.ueAverage.toFixed(2) : '--';
+      modulesList += `\n📌 ${ue.code} (Moy: ${ueAvgStr}/20):\n`;
+      for (const s of ueRes.subjects) {
+        const gradeStr = s.grade !== null ? `${s.grade.toFixed(2)}/20` : 'En attente';
+        const passMark = s.isPassing ? '✓' : '✗';
+        modulesList += `  • ${s.subject.name[language]}: ${gradeStr} [Coeff ${s.subject.coefficient}] (${passMark})\n`;
+      }
+    }
+
+    return `🎓 RELEVÉ DE NOTES PRÉVISIONNEL — S3
+🏛️ ${t.university} — ${t.faculty}
+📚 Licence L2 Automatique — Semestre 3 (S3)
+
+👤 Étudiant(e): ${studentName || 'Non renseigné'}
+🆔 Matricule: ${matricule || 'N/A'}
+
+📊 Moyenne Semestrielle: ${avgStr} / 20
+🏆 Crédits Acquis: ${result.creditsAcquired} / 29
+⚖️ Coefficients Validés: ${result.completedCoeffs} / 16
+🎯 Décision: ${statusText}
+${result.mention ? `🏅 Mention: ${result.mention[language]}\n` : ''}
+${modulesList}
+Calculé via L2 ATM — Université de Blida 1`;
+  };
 
   // Generate self-contained standalone HTML report for offline printing / saving
   const generateStandaloneHtml = (): string => {
@@ -180,11 +233,42 @@ export const ResultsTab: React.FC<ResultsTabProps> = ({
 </html>`;
   };
 
+  // Telegram native share action
+  const handleShareTelegram = () => {
+    const text = buildSummaryText();
+    if (onShareTelegram) {
+      onShareTelegram(text);
+    } else {
+      const tgUrl = `https://t.me/share/url?url=&text=${encodeURIComponent(text)}`;
+      window.open(tgUrl, '_blank');
+    }
+  };
+
+  // Open in external system browser (Chrome/Safari) with auto-print
+  const handleOpenExternalBrowser = () => {
+    const origin = window.location.origin;
+    const pathname = window.location.pathname;
+    const dataHash = encodeURIComponent(JSON.stringify(grades));
+    const exportUrl = `${origin}${pathname}?tab=results&print=1#data=${dataHash}`;
+
+    if (onOpenExternalPrint) {
+      onOpenExternalPrint(exportUrl);
+    } else {
+      window.open(exportUrl, '_blank');
+    }
+  };
+
   const handlePrint = () => {
+    if (isTelegram) {
+      // In Telegram webview, window.print() is disabled by Chromium WebView.
+      // Redirect to external browser or share!
+      handleOpenExternalBrowser();
+      return;
+    }
+
     try {
       window.print();
-    } catch (err) {
-      console.warn('Direct print failed, using new tab fallback:', err);
+    } catch {
       handleOpenInNewTab();
     }
   };
@@ -203,6 +287,10 @@ export const ResultsTab: React.FC<ResultsTabProps> = ({
   };
 
   const handleDownloadHtml = () => {
+    if (isTelegram) {
+      handleOpenExternalBrowser();
+      return;
+    }
     const html = generateStandaloneHtml();
     const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -217,19 +305,7 @@ export const ResultsTab: React.FC<ResultsTabProps> = ({
   };
 
   const handleCopySummary = async () => {
-    const avgStr = displayAverage !== null ? displayAverage.toFixed(2) : '--';
-    const text = `🎓 RELEVÉ DE NOTES — L2 AUTOMATIQUE (S3)
-${t.university} — ${t.faculty}
-Étudiant(e): ${studentName || 'Non renseigné'}
-Matricule: ${matricule || 'N/A'}
-
-📊 Moyenne Semestrielle: ${avgStr} / 20
-📚 Crédits Acquis: ${result.creditsAcquired} / 29
-⚖️ Coefficients: ${result.completedCoeffs} / 16
-🎯 Décision: ${result.isFullyCompleted ? (result.isPassing ? 'ADMIS(E)' : 'AJOURNÉ(E)') : 'Saisie partielle'}
-${result.mention ? `🏅 Mention: ${result.mention[language]}` : ''}
-
-Calculé via L2 ATM Calculator (Blida 1)`;
+    const text = buildSummaryText();
 
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -249,10 +325,14 @@ Calculé via L2 ATM Calculator (Blida 1)`;
     }
   };
 
+  useEffect(() => {
+    onExportReady?.(handleShareTelegram);
+  }, [onExportReady, grades, studentName, matricule, displayAverage]);
+
   // Reusable Export Action Buttons Bar
   const renderActionButtons = () => (
     <div className="flex items-center gap-2 flex-wrap">
-      {/* 1. Main Print Button */}
+      {/* 1. Main Print / PDF Button */}
       <button
         type="button"
         onClick={handlePrint}
@@ -263,26 +343,26 @@ Calculé via L2 ATM Calculator (Blida 1)`;
         <span>{t.labels.print}</span>
       </button>
 
-      {/* 2. Open Printable Page in New Tab */}
+      {/* 2. Telegram Native Share Button */}
       <button
         type="button"
-        onClick={handleOpenInNewTab}
-        className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl font-medium text-xs sm:text-sm bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white border border-slate-700 transition-all active:scale-95"
-        title="Ouvrir la version imprimable dans un nouvel onglet"
+        onClick={handleShareTelegram}
+        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-gradient-to-r from-sky-500 to-blue-600 text-white hover:brightness-110 shadow-lg shadow-sky-500/25 active:scale-95 transition-all"
+        title="Envoyer le relevé dans vos Messages Enregistrés sur Telegram"
       >
-        <ExternalLink className="w-3.5 h-3.5 text-cyan-400" />
-        <span className="hidden sm:inline">Nouvel Onglet</span>
+        <Send className="w-4 h-4" />
+        <span>{t.labels.shareTelegram}</span>
       </button>
 
-      {/* 3. Download Offline HTML / PDF */}
+      {/* 3. External Browser Print Button (Opens Chrome/Safari) */}
       <button
         type="button"
-        onClick={handleDownloadHtml}
-        className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl font-medium text-xs sm:text-sm bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white border border-slate-700 transition-all active:scale-95"
-        title="Télécharger le relevé pour l'ouvrir ou l'imprimer hors-ligne"
+        onClick={handleOpenExternalBrowser}
+        className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl font-semibold text-xs sm:text-sm bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white border border-slate-700 active:scale-95 transition-all"
+        title="Ouvre dans Chrome/Safari pour sauvegarder en PDF ou imprimer"
       >
-        <Download className="w-3.5 h-3.5 text-teal-400" />
-        <span>{t.labels.downloadHtml}</span>
+        <ExternalLink className="w-3.5 h-3.5 text-cyan-400" />
+        <span>{t.labels.openInBrowser}</span>
       </button>
 
       {/* 4. Copy Summary Text */}
@@ -290,7 +370,7 @@ Calculé via L2 ATM Calculator (Blida 1)`;
         type="button"
         onClick={handleCopySummary}
         className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl font-medium text-xs sm:text-sm bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white border border-slate-700 transition-all active:scale-95"
-        title="Copier le résumé pour WhatsApp / Telegram"
+        title="Copier le texte du relevé pour le coller"
       >
         {copied ? (
           <>
@@ -304,11 +384,39 @@ Calculé via L2 ATM Calculator (Blida 1)`;
           </>
         )}
       </button>
+
+      {/* 5. Download HTML (for non-Telegram / desktop) */}
+      {!isTelegram && (
+        <button
+          type="button"
+          onClick={handleDownloadHtml}
+          className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl font-medium text-xs sm:text-sm bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white border border-slate-700 transition-all active:scale-95"
+          title="Télécharger le fichier HTML"
+        >
+          <Download className="w-3.5 h-3.5 text-teal-400" />
+          <span>{t.labels.downloadHtml}</span>
+        </button>
+      )}
     </div>
   );
 
   return (
     <div className="space-y-6">
+      {/* Telegram Notice Banner if inside Telegram */}
+      {isTelegram && (
+        <div className="p-3.5 rounded-2xl bg-sky-950/40 border border-sky-800/60 text-sky-200 text-xs sm:text-sm flex items-start gap-2.5 no-print">
+          <Share2 className="w-4 h-4 text-sky-400 mt-0.5 shrink-0" />
+          <div className="flex-1">
+            <p className="font-bold text-sky-300">
+              {t.resultsSummary.telegramNoticeTitle}
+            </p>
+            <p className="text-xs text-sky-200/80 mt-0.5">
+              {t.resultsSummary.telegramNoticeDesc}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Top Action Bar (Hidden in Print) */}
       <div className="p-4 sm:p-5 rounded-3xl bg-slate-900 border border-slate-800 shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4 no-print">
         <div>
@@ -611,14 +719,53 @@ Calculé via L2 ATM Calculator (Blida 1)`;
         </div>
       </div>
 
-      {/* BOTTOM ACTION BAR (Directly under transcript for mobile & desktop) */}
+      {/* Expandable Transcript Text View (100% accessible on any mobile device) */}
+      <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 shadow-md no-print">
+        <button
+          type="button"
+          onClick={() => setShowFullText(!showFullText)}
+          className="w-full flex items-center justify-between text-xs sm:text-sm font-semibold text-slate-300 hover:text-white"
+        >
+          <div className="flex items-center gap-2">
+            <FileText className="w-4 h-4 text-cyan-400" />
+            <span>{t.resultsSummary.rawTextSection}</span>
+          </div>
+          {showFullText ? (
+            <ChevronUp className="w-4 h-4" />
+          ) : (
+            <ChevronDown className="w-4 h-4" />
+          )}
+        </button>
+
+        {showFullText && (
+          <div className="mt-3 space-y-2">
+            <textarea
+              readOnly
+              rows={8}
+              value={buildSummaryText()}
+              className="w-full p-3 rounded-xl bg-slate-950 border border-slate-800 font-mono text-xs text-slate-300 selection:bg-cyan-500"
+            />
+            <button
+              type="button"
+              onClick={handleCopySummary}
+              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-600 hover:bg-cyan-500 text-white transition-colors"
+            >
+              {copied ? `✓ ${t.labels.copied}` : t.resultsSummary.copyAllText}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* BOTTOM ACTION BAR (Directly under transcript for mobile & Telegram) */}
       <div className="p-4 sm:p-5 rounded-3xl bg-slate-900 border border-slate-800 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4 no-print">
         <div className="text-center sm:text-start">
           <p className="text-xs sm:text-sm font-bold text-white m-0">
-            {t.labels.print} & {t.labels.downloadHtml}
+            {t.resultsSummary.exportSectionTitle}
           </p>
           <p className="text-xs text-slate-400 m-0">
-            Exporter, imprimer ou télécharger votre relevé officiel S3 en un clic.
+            {isTelegram
+              ? t.resultsSummary.exportSectionDescTelegram
+              : t.resultsSummary.exportSectionDesc}
           </p>
         </div>
 
