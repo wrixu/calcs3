@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SlidersHorizontal, ArrowRight, RotateCcw, Check, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import type { SemesterResult, Language, GradeState } from '../types';
 import { calculateSemester } from '../utils/calculator';
@@ -10,6 +10,7 @@ interface SimulatorTabProps {
   realResult: SemesterResult;
   language: Language;
   onApplySimulatedGrades: (newGrades: GradeState) => void;
+  onSimGradesChange?: (grades: GradeState) => void;
 }
 
 export const SimulatorTab: React.FC<SimulatorTabProps> = ({
@@ -17,6 +18,7 @@ export const SimulatorTab: React.FC<SimulatorTabProps> = ({
   realResult,
   language,
   onApplySimulatedGrades,
+  onSimGradesChange,
 }) => {
   const t = translations[language];
 
@@ -34,6 +36,10 @@ export const SimulatorTab: React.FC<SimulatorTabProps> = ({
   });
 
   const [appliedToast, setAppliedToast] = useState(false);
+
+  useEffect(() => {
+    onSimGradesChange?.(simGrades);
+  }, [simGrades, onSimGradesChange]);
 
   const simResult = calculateSemester(simGrades);
 

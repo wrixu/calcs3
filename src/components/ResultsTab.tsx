@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Printer } from 'lucide-react';
 import type { SemesterResult, Language } from '../types';
 import { UES } from '../data/curriculum';
@@ -7,12 +7,23 @@ import { translations } from '../data/translations';
 interface ResultsTabProps {
   result: SemesterResult;
   language: Language;
+  defaultStudentName?: string;
 }
 
-export const ResultsTab: React.FC<ResultsTabProps> = ({ result, language }) => {
+export const ResultsTab: React.FC<ResultsTabProps> = ({
+  result,
+  language,
+  defaultStudentName = '',
+}) => {
   const t = translations[language];
-  const [studentName, setStudentName] = useState<string>('');
+  const [studentName, setStudentName] = useState<string>(defaultStudentName);
   const [matricule, setMatricule] = useState<string>('');
+
+  useEffect(() => {
+    if (defaultStudentName && !studentName) {
+      setStudentName(defaultStudentName);
+    }
+  }, [defaultStudentName, studentName]);
 
   const handlePrint = () => {
     window.print();

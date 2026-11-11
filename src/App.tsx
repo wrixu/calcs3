@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { Language, GradeState } from './types';
 import { useLocalStorage } from './hooks/useLocalStorage';
+import { useTelegramWebApp } from './hooks/useTelegramWebApp';
 import { calculateSemester } from './utils/calculator';
 import { SAMPLE_GRADES } from './data/sampleData';
+import { translations } from './data/translations';
 import { Header } from './components/Header';
 import { TabNav, type TabId } from './components/TabNav';
 import { SummaryCards } from './components/SummaryCards';
@@ -19,11 +21,27 @@ export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabId>('calculator');
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
 
+  // Telegram Mini App integration hook
+  const tg = useTelegramWebApp();
+  const t = translations[language];
+
+  // Ref to hold the latest simulated grades for Telegram MainButton callback
+  const latestSimGradesRef = useRef<GradeState | null>(null);
+
   // Synchronize document dir and lang for accessibility and Arabic RTL
   useEffect(() => {
     document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
     document.documentElement.lang = language;
   }, [language]);
+
+  // Synchronize Telegram color scheme
+  useEffect(() => {
+    if (tg.isTelegram && tg.colorScheme === 'light') {
+      document.documentElement.classList.add('tg-light');
+    } else {
+      document.documentElement.classList.remove('tg-light');
+    }
+  }, [tg.isTelegram, tg.colorScheme]);
 
   const semesterResult = calculateSemester(grades);
 
@@ -32,6 +50,7 @@ export const App: React.FC = () => {
     field: 'cc' | 'exam',
     value: number | null
   ) => {
+    tg.haptic('light');
     setGrades((prev) => {
       const existing = prev[subjectId] || {};
       return {
@@ -45,18 +64,94 @@ export const App: React.FC = () => {
   };
 
   const handleResetConfirm = () => {
+    tg.haptic('warning');
     setGrades({});
     setIsResetModalOpen(false);
   };
 
   const handleLoadSample = () => {
+    tg.haptic('success');
     setGrades(SAMPLE_GRADES);
   };
 
   const handleApplySimulatedGrades = (newGrades: GradeState) => {
+    tg.haptic('success');
     setGrades(newGrades);
     setActiveTab('calculator');
   };
+
+  const handleTabChange = (tab: TabId) => {
+    tg.haptic('selection');
+    setActiveTab(tab);
+  };
+
+  // Telegram BackButton management
+  useEffect(() => {
+    if (!tg.isTelegram) return;
+
+    if (activeTab !== 'calculator') {
+      tg.configureBackButton({
+        isVisible: true,
+        onClick: () => {
+          tg.haptic('selection');
+          setActiveTab('calculator');
+        },
+      });
+    } else {
+      tg.configureBackButton({ isVisible: false });
+    }
+  }, [activeTab, tg]);
+
+  // Telegram MainButton management (contextual & non-disruptive)
+  useEffect(() => {
+    if (!tg.isTelegram) return;
+
+    if (activeTab === 'results') {
+      // On Results tab: offer direct PDF / print trigger
+      tg.configureMainButton({
+        text: `🖨️ ${t.labels.print}`,
+        isVisible: true,
+        color: '#0ea5e9',
+        textColor: '#ffffff',
+        onClick: () => {
+          tg.haptic('light');
+          window.print();
+        },
+      });
+    } else if (activeTab === 'simulator') {
+      // On Simulator tab: offer to apply simulated marks
+      tg.configureMainButton({
+        text: `💾 ${t.simulator.applyToMain}`,
+        isVisible: true,
+        color: '#0d9488',
+        textColor: '#ffffff',
+        onClick: () => {
+          if (latestSimGradesRef.current) {
+            handleApplySimulatedGrades(latestSimGradesRef.current);
+          }
+        },
+      });
+    } else if (activeTab === 'calculator' && semesterResult.isFullyCompleted) {
+      // On Calculator when completed: offer quick navigation to official report
+      tg.configureMainButton({
+        text: `📜 ${t.tabs.results}`,
+        isVisible: true,
+        color: '#0ea5e9',
+        textColor: '#ffffff',
+        onClick: () => {
+          tg.haptic('selection');
+          setActiveTab('results');
+        },
+      });
+    } else {
+      // Keep hidden during manual input on calculator to avoid blocking virtual keyboard
+      tg.configureMainButton({ isVisible: false, text: '' });
+    }
+  }, [activeTab, tg, semesterResult.isFullyCompleted, t]);
+
+  const telegramStudentName = tg.user
+    ? [tg.user.first_name, tg.user.last_name].filter(Boolean).join(' ')
+    : '';
 
   return (
     <div
@@ -66,8 +161,14 @@ export const App: React.FC = () => {
       {/* Header */}
       <Header
         language={language}
-        onLanguageChange={setLanguage}
-        onResetClick={() => setIsResetModalOpen(true)}
+        onLanguageChange={(lang) => {
+          tg.haptic('selection');
+          setLanguage(lang);
+        }}
+        onResetClick={() => {
+          tg.haptic('warning');
+          setIsResetModalOpen(true);
+        }}
         onLoadSampleClick={handleLoadSample}
         isCompleted={semesterResult.isFullyCompleted}
         semesterAverage={semesterResult.semesterAverage}
@@ -77,7 +178,7 @@ export const App: React.FC = () => {
       {/* Tabs Navigation */}
       <TabNav
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={handleTabChange}
         language={language}
       />
 
@@ -113,12 +214,19 @@ export const App: React.FC = () => {
             realResult={semesterResult}
             language={language}
             onApplySimulatedGrades={handleApplySimulatedGrades}
+            onSimGradesChange={(sim) => {
+              latestSimGradesRef.current = sim;
+            }}
           />
         )}
 
         {/* Tab 4: Results & Export */}
         {activeTab === 'results' && (
-          <ResultsTab result={semesterResult} language={language} />
+          <ResultsTab
+            result={semesterResult}
+            language={language}
+            defaultStudentName={telegramStudentName}
+          />
         )}
       </main>
 
@@ -130,7 +238,10 @@ export const App: React.FC = () => {
         isOpen={isResetModalOpen}
         language={language}
         onConfirm={handleResetConfirm}
-        onCancel={() => setIsResetModalOpen(false)}
+        onCancel={() => {
+          tg.haptic('light');
+          setIsResetModalOpen(false);
+        }}
       />
     </div>
   );
