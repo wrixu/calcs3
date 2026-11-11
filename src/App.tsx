@@ -16,8 +16,8 @@ import { ResetModal } from './components/ResetModal';
 import { Footer } from './components/Footer';
 
 export const App: React.FC = () => {
-  const [grades, setGrades] = useLocalStorage<GradeState>('g2_atm_s3_grades_v1', {});
-  const [language, setLanguage] = useLocalStorage<Language>('g2_atm_s3_lang_v1', 'fr');
+  const [grades, setGrades] = useLocalStorage<GradeState>('l2_atm_s3_grades_v1', {});
+  const [language, setLanguage] = useLocalStorage<Language>('l2_atm_s3_lang_v1', 'fr');
   const [activeTab, setActiveTab] = useState<TabId>('calculator');
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
 
@@ -27,6 +27,7 @@ export const App: React.FC = () => {
 
   // Ref to hold the latest simulated grades for Telegram MainButton callback
   const latestSimGradesRef = useRef<GradeState | null>(null);
+  const exportResultsFnRef = useRef<(() => void) | null>(null);
 
   // Synchronize document dir and lang for accessibility and Arabic RTL
   useEffect(() => {
@@ -115,7 +116,15 @@ export const App: React.FC = () => {
         textColor: '#ffffff',
         onClick: () => {
           tg.haptic('light');
-          window.print();
+          if (exportResultsFnRef.current) {
+            exportResultsFnRef.current();
+          } else {
+            try {
+              window.print();
+            } catch {
+              // fallback
+            }
+          }
         },
       });
     } else if (activeTab === 'simulator') {
@@ -226,6 +235,9 @@ export const App: React.FC = () => {
             result={semesterResult}
             language={language}
             defaultStudentName={telegramStudentName}
+            onExportReady={(fn) => {
+              exportResultsFnRef.current = fn;
+            }}
           />
         )}
       </main>

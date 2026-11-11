@@ -1,4 +1,4 @@
-# G2 ATM — Grade Calculator 🎓
+# L2 ATM — Grade Calculator 🎓
 
 **Calculateur de Moyenne & Simulateur Académique — L2 Automatique (Semestre 3)**  
 *Université Saad Dahlab Blida 1 (Algérie) • Institut d'Aéronautique et des Études Spatiales / Faculté de Technologie*
@@ -7,7 +7,7 @@
 
 ## 🌟 Présentation du Projet
 
-**G2 ATM** est une application web moderne, mobile-first et 100% autonome conçue spécifiquement pour les étudiants de **L2 Automatique (S3)** de l'**Université de Blida 1**.
+**L2 ATM** est une application web moderne, mobile-first et 100% autonome conçue spécifiquement pour les étudiants de **L2 Automatique (S3)** de l'**Université de Blida 1**.
 
 Elle permet de calculer avec exactitude la moyenne semestrielle, de simuler des notes d'examen (*What-If Simulator*), d'analyser les objectifs de réussite (*Target Calculator*), et d'exporter un relevé de notes prévisionnel imprimable et conforme aux règles officielles du système **LMD algérien**.
 
@@ -169,7 +169,7 @@ npx netlify deploy --prod --dir=dist
 npm run build
 npx surge dist
 ```
-Suivez les invites pour choisir un nom de domaine gratuit (ex: `g2-atm-blida.surge.sh`).
+Suivez les invites pour choisir un nom de domaine gratuit (ex: `l2-atm-blida.surge.sh`).
 
 ---
 
@@ -177,7 +177,7 @@ Suivez les invites pour choisir un nom de domaine gratuit (ex: `g2-atm-blida.sur
 L'application est immédiatement compatible avec l'intégration en tant que Telegram Mini App pour les groupes d'étudiants :
 1. Créez un bot sur Telegram via `@BotFather`.
 2. Tapez `/newapp`, sélectionnez votre bot.
-3. Définissez le titre (`G2 ATM Calculator`) et collez l'URL HTTPS issue de votre hébergement statique (Vercel, Netlify, Cloudflare ou GitHub Pages).
+3. Définissez le titre (`L2 ATM Calculator`) et collez l'URL HTTPS issue de votre hébergement statique (Vercel, Netlify, Cloudflare ou GitHub Pages).
 4. L'application s'ouvre de manière fluide et responsive à l'intérieur même de Telegram sur Android et iOS.
 
 ---

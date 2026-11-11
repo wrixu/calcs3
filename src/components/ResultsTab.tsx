@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Printer } from 'lucide-react';
+import { Printer, Download, Copy, Check, ExternalLink } from 'lucide-react';
 import type { SemesterResult, Language } from '../types';
 import { UES } from '../data/curriculum';
 import { translations } from '../data/translations';
@@ -8,16 +8,19 @@ interface ResultsTabProps {
   result: SemesterResult;
   language: Language;
   defaultStudentName?: string;
+  onExportReady?: (exportFn: () => void) => void;
 }
 
 export const ResultsTab: React.FC<ResultsTabProps> = ({
   result,
   language,
   defaultStudentName = '',
+  onExportReady,
 }) => {
   const t = translations[language];
   const [studentName, setStudentName] = useState<string>(defaultStudentName);
   const [matricule, setMatricule] = useState<string>('');
+  const [copied, setCopied] = useState<boolean>(false);
 
   useEffect(() => {
     if (defaultStudentName && !studentName) {
@@ -25,35 +28,304 @@ export const ResultsTab: React.FC<ResultsTabProps> = ({
     }
   }, [defaultStudentName, studentName]);
 
-  const handlePrint = () => {
-    window.print();
-  };
+  useEffect(() => {
+    onExportReady?.(handlePrint);
+  }, [onExportReady]);
 
   const displayAverage = result.isFullyCompleted
     ? result.semesterAverage
     : result.partialAverage;
 
+  // Generate self-contained standalone HTML report for offline printing / saving
+  const generateStandaloneHtml = (): string => {
+    const isAr = language === 'ar';
+    const title = `${t.appName} — ${t.resultsSummary.officialTranscript}`;
+
+    let rowsHtml = '';
+    for (const ue of UES) {
+      const ueRes = result.ues[ue.id];
+      rowsHtml += `
+        <tr style="background:#f1f5f9; font-weight:bold; color:#0f172a;">
+          <td colspan="5" style="padding:8px 12px; border:1px solid #cbd5e1;">
+            ${ue.code} — ${ue.name[language]} (Coeff: ${ue.coefficient}, Crédits: ${ue.credits})
+          </td>
+          <td style="padding:8px; text-align:center; border:1px solid #cbd5e1;">
+            ${ueRes.ueAverage !== null ? ueRes.ueAverage.toFixed(2) : '--'}
+          </td>
+          <td style="padding:8px; text-align:center; border:1px solid #cbd5e1;">
+            ${ueRes.completedCoeffs} c.
+          </td>
+          <td style="padding:8px; text-align:center; border:1px solid #cbd5e1;">
+            ${ueRes.isAcquired ? 'UE Validée' : 'Non validée'}
+          </td>
+        </tr>
+      `;
+
+      for (const subRes of ueRes.subjects) {
+        const { subject, cc, exam, grade, weightedGrade, isCompleted, isPassing } = subRes;
+        rowsHtml += `
+          <tr>
+            <td style="padding:8px 12px; border:1px solid #cbd5e1;">${subject.name[language]}</td>
+            <td style="padding:8px; text-align:center; border:1px solid #cbd5e1; font-weight:600;">${subject.coefficient}</td>
+            <td style="padding:8px; text-align:center; border:1px solid #cbd5e1;">${subject.credits}</td>
+            <td style="padding:8px; text-align:center; border:1px solid #cbd5e1;">${subject.assessmentType === 'EXAM_ONLY' ? '—' : cc !== null ? cc.toFixed(2) : '--'}</td>
+            <td style="padding:8px; text-align:center; border:1px solid #cbd5e1;">${subject.assessmentType === 'CC_ONLY' ? '—' : exam !== null ? exam.toFixed(2) : '--'}</td>
+            <td style="padding:8px; text-align:center; border:1px solid #cbd5e1; font-weight:bold; color:${isPassing ? '#15803d' : '#b91c1c'};">${isCompleted && grade !== null ? grade.toFixed(2) : '--'}</td>
+            <td style="padding:8px; text-align:center; border:1px solid #cbd5e1; font-weight:600;">${weightedGrade !== null ? weightedGrade.toFixed(2) : '--'}</td>
+            <td style="padding:8px; text-align:center; border:1px solid #cbd5e1; font-size:12px; font-weight:bold; color:${isPassing ? '#15803d' : '#b91c1c'};">${isCompleted ? (isPassing ? t.labels.passed : t.labels.failed) : t.labels.inProgress}</td>
+          </tr>
+        `;
+      }
+    }
+
+    return `<!DOCTYPE html>
+<html lang="${language}" dir="${isAr ? 'rtl' : 'ltr'}">
+<head>
+  <meta charset="utf-8">
+  <title>${title}</title>
+  <style>
+    body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; margin: 20px; color: #0f172a; background: #fff; }
+    .header { text-align: center; border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 16px; }
+    .header h1 { margin: 8px 0 4px; font-size: 20px; }
+    .meta { display: flex; justify-content: space-between; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 13px; }
+    .kpis { display: flex; gap: 12px; margin-bottom: 16px; }
+    .kpi { flex: 1; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; text-align: center; background: #f8fafc; }
+    .kpi-val { font-size: 20px; font-weight: bold; margin-top: 4px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 16px; }
+    .decision { border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; background: #f8fafc; font-size: 13px; margin-bottom: 24px; }
+    .footer { display: flex; justify-content: space-between; margin-top: 30px; font-size: 12px; }
+    @media print {
+      body { margin: 0; }
+      .no-print { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div style="font-size:12px; text-transform:uppercase; font-weight:bold; color:#0284c7;">${t.university}</div>
+    <div style="font-size:11px; color:#64748b;">${t.faculty}</div>
+    <h1>${t.resultsSummary.officialTranscript}</h1>
+    <div style="font-size:11px; color:#64748b;">${t.resultsSummary.academicYear} • Licence L2 Automatique (S3)</div>
+  </div>
+
+  <div class="meta">
+    <div><strong>${t.resultsSummary.studentNamePlaceholder}:</strong> ${studentName || '—'}</div>
+    <div><strong>${t.resultsSummary.matriculePlaceholder}:</strong> ${matricule || '—'}</div>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi">
+      <div style="font-size:11px; color:#64748b;">${t.labels.semesterAverage}</div>
+      <div class="kpi-val" style="color:${displayAverage !== null && displayAverage >= 10 ? '#15803d' : '#b91c1c'};">${displayAverage !== null ? displayAverage.toFixed(2) : '--'} / 20</div>
+    </div>
+    <div class="kpi">
+      <div style="font-size:11px; color:#64748b;">${t.labels.creditsAcquired}</div>
+      <div class="kpi-val">${result.creditsAcquired} / 29</div>
+    </div>
+    <div class="kpi">
+      <div style="font-size:11px; color:#64748b;">${t.labels.totalCoeffs}</div>
+      <div class="kpi-val">${result.completedCoeffs} / 16</div>
+    </div>
+    <div class="kpi">
+      <div style="font-size:11px; color:#64748b;">${t.labels.status}</div>
+      <div class="kpi-val" style="font-size:14px; color:${result.isFullyCompleted && result.isPassing ? '#15803d' : '#b91c1c'};">
+        ${result.isFullyCompleted ? (result.isPassing ? t.labels.admis : t.labels.ajourne) : t.labels.inProgress}
+      </div>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr style="background:#0f172a; color:#fff;">
+        <th style="padding:8px 12px; text-align:start; border:1px solid #0f172a;">Matière</th>
+        <th style="padding:8px; text-align:center; border:1px solid #0f172a;">Coeff</th>
+        <th style="padding:8px; text-align:center; border:1px solid #0f172a;">Crédits</th>
+        <th style="padding:8px; text-align:center; border:1px solid #0f172a;">CC</th>
+        <th style="padding:8px; text-align:center; border:1px solid #0f172a;">Exam</th>
+        <th style="padding:8px; text-align:center; border:1px solid #0f172a;">Note /20</th>
+        <th style="padding:8px; text-align:center; border:1px solid #0f172a;">Pondérée</th>
+        <th style="padding:8px; text-align:center; border:1px solid #0f172a;">Statut</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rowsHtml}
+    </tbody>
+  </table>
+
+  <div class="decision">
+    <strong>${t.resultsSummary.decision}:</strong>
+    <span style="font-weight:bold; text-transform:uppercase; color:${result.isFullyCompleted && result.isPassing ? '#15803d' : '#b91c1c'};">
+      ${result.isFullyCompleted ? (result.isPassing ? `${t.labels.admis} (Par compensation semestrielle)` : `${t.labels.ajourne} (Session de rattrapage)`) : 'Saisie en cours'}
+    </span>
+    ${result.mention ? ` • <strong>${t.resultsSummary.mention}:</strong> ${result.mention[language]}` : ''}
+    <div style="font-size:11px; color:#64748b; margin-top:4px;">
+      Moyenne semestrielle calculée en divisant la somme pondérée par 16 (total des coefficients). Si moyenne &ge; 10.00/20, les 29 crédits sont acquis.
+    </div>
+  </div>
+
+  <div class="footer">
+    <div>Fait à Blida, le: ${new Date().toLocaleDateString('fr-FR')}</div>
+    <div style="text-align:center;">
+      <strong>Le Président du Jury de Délibération</strong><br><br><br>
+      Signature et Cachet
+    </div>
+  </div>
+
+  <script>
+    window.onload = function() {
+      setTimeout(function() { window.print(); }, 250);
+    };
+  </script>
+</body>
+</html>`;
+  };
+
+  const handlePrint = () => {
+    try {
+      window.print();
+    } catch (err) {
+      console.warn('Direct print failed, using new tab fallback:', err);
+      handleOpenInNewTab();
+    }
+  };
+
+  const handleOpenInNewTab = () => {
+    const html = generateStandaloneHtml();
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.open();
+      printWindow.document.write(html);
+      printWindow.document.close();
+      printWindow.focus();
+    } else {
+      handleDownloadHtml();
+    }
+  };
+
+  const handleDownloadHtml = () => {
+    const html = generateStandaloneHtml();
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const cleanName = (studentName || 'Etudiant').replace(/[^a-zA-Z0-9_\u0600-\u06FF]/g, '_');
+    a.download = `Releve_Notes_L2_ATM_S3_${cleanName}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleCopySummary = async () => {
+    const avgStr = displayAverage !== null ? displayAverage.toFixed(2) : '--';
+    const text = `🎓 RELEVÉ DE NOTES — L2 AUTOMATIQUE (S3)
+${t.university} — ${t.faculty}
+Étudiant(e): ${studentName || 'Non renseigné'}
+Matricule: ${matricule || 'N/A'}
+
+📊 Moyenne Semestrielle: ${avgStr} / 20
+📚 Crédits Acquis: ${result.creditsAcquired} / 29
+⚖️ Coefficients: ${result.completedCoeffs} / 16
+🎯 Décision: ${result.isFullyCompleted ? (result.isPassing ? 'ADMIS(E)' : 'AJOURNÉ(E)') : 'Saisie partielle'}
+${result.mention ? `🏅 Mention: ${result.mention[language]}` : ''}
+
+Calculé via L2 ATM Calculator (Blida 1)`;
+
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch (err) {
+      console.warn('Failed to copy summary:', err);
+    }
+  };
+
+  // Reusable Export Action Buttons Bar
+  const renderActionButtons = () => (
+    <div className="flex items-center gap-2 flex-wrap">
+      {/* 1. Main Print Button */}
+      <button
+        type="button"
+        onClick={handlePrint}
+        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm bg-gradient-to-r from-cyan-500 to-teal-400 text-slate-950 hover:brightness-110 shadow-lg shadow-cyan-500/20 active:scale-95 transition-all"
+        title="Imprimer directement ou sauvegarder en PDF"
+      >
+        <Printer className="w-4 h-4" />
+        <span>{t.labels.print}</span>
+      </button>
+
+      {/* 2. Open Printable Page in New Tab */}
+      <button
+        type="button"
+        onClick={handleOpenInNewTab}
+        className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl font-medium text-xs sm:text-sm bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white border border-slate-700 transition-all active:scale-95"
+        title="Ouvrir la version imprimable dans un nouvel onglet"
+      >
+        <ExternalLink className="w-3.5 h-3.5 text-cyan-400" />
+        <span className="hidden sm:inline">Nouvel Onglet</span>
+      </button>
+
+      {/* 3. Download Offline HTML / PDF */}
+      <button
+        type="button"
+        onClick={handleDownloadHtml}
+        className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl font-medium text-xs sm:text-sm bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white border border-slate-700 transition-all active:scale-95"
+        title="Télécharger le relevé pour l'ouvrir ou l'imprimer hors-ligne"
+      >
+        <Download className="w-3.5 h-3.5 text-teal-400" />
+        <span>{t.labels.downloadHtml}</span>
+      </button>
+
+      {/* 4. Copy Summary Text */}
+      <button
+        type="button"
+        onClick={handleCopySummary}
+        className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl font-medium text-xs sm:text-sm bg-slate-800 text-slate-200 hover:bg-slate-700 hover:text-white border border-slate-700 transition-all active:scale-95"
+        title="Copier le résumé pour WhatsApp / Telegram"
+      >
+        {copied ? (
+          <>
+            <Check className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="text-emerald-400 font-bold">{t.labels.copied}</span>
+          </>
+        ) : (
+          <>
+            <Copy className="w-3.5 h-3.5 text-slate-400" />
+            <span>{t.labels.copySummary}</span>
+          </>
+        )}
+      </button>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
-      {/* Action Bar (Hidden in Print) */}
-      <div className="p-4 sm:p-5 rounded-3xl bg-slate-900 border border-slate-800 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4 no-print">
+      {/* Top Action Bar (Hidden in Print) */}
+      <div className="p-4 sm:p-5 rounded-3xl bg-slate-900 border border-slate-800 shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4 no-print">
         <div>
-          <h2 className="text-base sm:text-lg font-bold text-white m-0">
-            {t.resultsSummary.title}
-          </h2>
-          <p className="text-xs sm:text-sm text-slate-400 m-0">
+          <div className="flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-bold text-white m-0">
+              {t.resultsSummary.title}
+            </h2>
+            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-cyan-950 text-cyan-300 border border-cyan-800/60">
+              L2 ATM — S3
+            </span>
+          </div>
+          <p className="text-xs sm:text-sm text-slate-400 m-0 mt-0.5">
             {t.resultsSummary.printInstruction}
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={handlePrint}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm bg-gradient-to-r from-cyan-500 to-teal-400 text-slate-950 hover:brightness-110 shadow-lg shadow-cyan-500/20 active:scale-95 transition-all"
-        >
-          <Printer className="w-4 h-4" />
-          <span>{t.labels.print}</span>
-        </button>
+        {renderActionButtons()}
       </div>
 
       {/* Printable Academic Transcript Paper Container */}
@@ -69,8 +341,8 @@ export const ResultsTab: React.FC<ResultsTabProps> = ({
           <h1 className="text-lg sm:text-xl font-extrabold text-white print:text-black mt-2">
             {t.resultsSummary.officialTranscript}
           </h1>
-          <p className="text-xs text-slate-400 print:text-slate-600">
-            {t.resultsSummary.academicYear} • Programme LMD
+          <p className="text-xs text-slate-400 print:text-slate-600 font-medium">
+            {t.resultsSummary.academicYear} • Licence L2 Automatique — Semestre 3 (S3)
           </p>
         </div>
 
@@ -322,7 +594,7 @@ export const ResultsTab: React.FC<ResultsTabProps> = ({
           </div>
 
           <p className="text-slate-400 print:text-slate-600 text-xs">
-            Règle LMD : La moyenne générale est calculée en divisant la somme pondérée des notes par 16 (total des coefficients). Si la moyenne semestrielle est ≥ 10.00/20, les 29 crédits sont intégralement acquis par compensation.
+            Règle LMD : La moyenne générale est calculée en divisant la somme pondérée des notes par 16 (total des coefficients). Si la moyenne semestrielle est &ge; 10.00/20, les 29 crédits sont intégralement acquis par compensation.
           </p>
         </div>
 
@@ -337,6 +609,20 @@ export const ResultsTab: React.FC<ResultsTabProps> = ({
             <p>Signature et Cachet</p>
           </div>
         </div>
+      </div>
+
+      {/* BOTTOM ACTION BAR (Directly under transcript for mobile & desktop) */}
+      <div className="p-4 sm:p-5 rounded-3xl bg-slate-900 border border-slate-800 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4 no-print">
+        <div className="text-center sm:text-start">
+          <p className="text-xs sm:text-sm font-bold text-white m-0">
+            {t.labels.print} & {t.labels.downloadHtml}
+          </p>
+          <p className="text-xs text-slate-400 m-0">
+            Exporter, imprimer ou télécharger votre relevé officiel S3 en un clic.
+          </p>
+        </div>
+
+        {renderActionButtons()}
       </div>
     </div>
   );

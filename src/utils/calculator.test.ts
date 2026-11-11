@@ -17,7 +17,7 @@ import {
 import { translations } from '../data/translations';
 import type { GradeState } from '../types';
 
-describe('G2 ATM - S3 Grade Calculator Comprehensive Audit', () => {
+describe('L2 ATM - S3 Grade Calculator Comprehensive Audit', () => {
   // Audit Item 1: Exactly 10 subjects
   it('Audit 1: There are exactly 10 subjects', () => {
     expect(SUBJECTS.length).toBe(10);
@@ -208,7 +208,7 @@ describe('G2 ATM - S3 Grade Calculator Comprehensive Audit', () => {
     for (const lang of languages) {
       const t = translations[lang];
       expect(t).toBeDefined();
-      expect(t.appName).toBe('G2 ATM');
+      expect(t.appName).toBe('L2 ATM');
       expect(t.tabs.calculator).toBeTruthy();
       expect(t.tabs.target).toBeTruthy();
       expect(t.tabs.simulator).toBeTruthy();

@@ -36,11 +36,14 @@ export const Header: React.FC<HeaderProps> = ({
                 <GraduationCap className="w-6 h-6 text-white" />
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-lg font-bold tracking-tight text-white m-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <h1 className="text-lg font-extrabold tracking-tight text-white m-0">
                     {t.appName}
                   </h1>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-cyan-950/80 text-cyan-300 border border-cyan-800/60 font-medium">
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-cyan-950/90 text-cyan-300 border border-cyan-700/60 font-bold">
+                    S3
+                  </span>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 font-medium">
                     Blida 1
                   </span>
                 </div>

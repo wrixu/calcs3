@@ -53,6 +53,9 @@ export interface TranslationSchema {
     minExamNeeded: string;
     impossible: string;
     guaranteed: string;
+    downloadHtml: string;
+    copySummary: string;
+    copied: string;
   };
   targetCalc: {
     title: string;
@@ -103,9 +106,9 @@ export interface TranslationSchema {
 
 export const translations: Record<Language, TranslationSchema> = {
   fr: {
-    appName: 'G2 ATM',
-    appFullName: 'G2 ATM — Calculateur de Moyenne',
-    subtitle: 'L2 Automatique — Semestre 3',
+    appName: 'L2 ATM',
+    appFullName: 'L2 ATM — Calculateur de Moyenne (S3)',
+    subtitle: 'L2 Automatique — Semestre 3 (S3)',
     university: 'Université Saad Dahlab Blida 1',
     faculty: 'Institut d’Aéronautique et des Études Spatiales / Faculté de Technologie',
     officialNotice:
@@ -156,6 +159,9 @@ export const translations: Record<Language, TranslationSchema> = {
       minExamNeeded: 'Exam requis:',
       impossible: 'Impossible (> 20)',
       guaranteed: 'Déjà garanti (0/20 suffit)',
+      downloadHtml: 'Télécharger le Relevé (HTML / PDF)',
+      copySummary: 'Copier le Résumé',
+      copied: 'Copié !',
     },
     targetCalc: {
       title: 'Calculateur d’Objectif de Moyenne',
@@ -210,9 +216,9 @@ export const translations: Record<Language, TranslationSchema> = {
     },
   },
   ar: {
-    appName: 'G2 ATM',
-    appFullName: 'G2 ATM — حاسبة معدل السداسي',
-    subtitle: 'السنة الثانية أوتوماتيك — السداسي 3',
+    appName: 'L2 ATM',
+    appFullName: 'L2 ATM — حاسبة معدل السداسي 3',
+    subtitle: 'السنة الثانية أوتوماتيك — السداسي 3 (S3)',
     university: 'جامعة سعد دحلب البليدة 1',
     faculty: 'معهد علوم الطيران ودراسات الفضاء / كلية التكنولوجيا',
     officialNotice:
@@ -263,6 +269,9 @@ export const translations: Record<Language, TranslationSchema> = {
       minExamNeeded: 'الامتحان المطلوب:',
       impossible: 'مستحيل (> 20)',
       guaranteed: 'مضمون بالفعل (يكفي 0/20)',
+      downloadHtml: 'تحميل كشف النقاط (HTML / PDF)',
+      copySummary: 'نسخ الملخص',
+      copied: 'تم النسخ بنجاح !',
     },
     targetCalc: {
       title: 'حاسبة المعدل المستهدف',
@@ -317,9 +326,9 @@ export const translations: Record<Language, TranslationSchema> = {
     },
   },
   en: {
-    appName: 'G2 ATM',
-    appFullName: 'G2 ATM — Grade Calculator',
-    subtitle: 'L2 Automatique — Semester 3',
+    appName: 'L2 ATM',
+    appFullName: 'L2 ATM — S3 Grade Calculator',
+    subtitle: 'L2 Automatique — Semester 3 (S3)',
     university: 'University Saad Dahlab Blida 1',
     faculty: 'Aeronautics & Space Studies Institute / Faculty of Technology',
     officialNotice:
@@ -370,6 +379,9 @@ export const translations: Record<Language, TranslationSchema> = {
       minExamNeeded: 'Required Exam:',
       impossible: 'Impossible (> 20)',
       guaranteed: 'Guaranteed (0/20 suffices)',
+      downloadHtml: 'Download Report (HTML / PDF)',
+      copySummary: 'Copy Summary',
+      copied: 'Copied!',
     },
     targetCalc: {
       title: 'Target Grade Calculator',
